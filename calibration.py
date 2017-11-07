@@ -5,20 +5,34 @@ from numpy import median, diff
 import queue
 import pyaudio
 import wave
-
+import time
 import threading
 
-import keyboard
+from pynput import keyboard
 
 from multiprocessing.pool import ThreadPool
 
+from serial import Serial, SerialException
 
-def record(queue,num=1,name='recording.wav'):
+import sys, termios, tty, os, time
+
+def getch():
+    fd = sys.stdin.fileno()
+    old_settings = termios.tcgetattr(fd)
+    try:
+        tty.setraw(sys.stdin.fileno())
+        ch = sys.stdin.read(1)
+ 
+    finally:
+        termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+    return ch
+
+def record(queue,name='calibration.wav'):
 	FORMAT = pyaudio.paInt16
 	CHANNELS = 2
 	RATE = 44100
 	CHUNK = 1024
-	RECORD_SECONDS = 5
+	RECORD_SECONDS = 20
 	WAVE_OUTPUT_FILENAME = name
 	 
 	audio = pyaudio.PyAudio()
@@ -47,27 +61,15 @@ def record(queue,num=1,name='recording.wav'):
 	waveFile.setframerate(RATE)
 	waveFile.writeframes(b''.join(frames))
 	waveFile.close()
-
-	pool = ThreadPool(processes=2)
-	if num < 5:
-		r = threading.Thread(target=record, args=(queue,num+1))
-		b = threading.Thread(target=get_file_bpm, args=(queue,))
-		r.start()
-		b.start()
-		r.join()
-	else:
-		return queue
-		#async_result = pool.apply_async(get_file_bpm)
-		#recording = pool.apply_async(record, args=(num+1,))
-		
+	get_file_bpm(queue)
 
 
-def get_file_bpm(queue,params=None):
+def get_file_bpm(queue, params=None):
 	""" Calculate the beats per minute (bpm) of a given file.
 	    path: path to the file
 	    param: dictionary of parameters
 	"""
-	path = '/Users/emilylepert/Documents/Olin_2/First_Semester/PoE/Final_Project/BeatDetection/recording.wav'
+	path = '/Users/emilylepert/Documents/Olin_2/First_Semester/PoE/Final_Project/BeatDetection/calibration.wav'
 	if params is None:
 		params = {}
 	# default:
@@ -112,24 +114,86 @@ def get_file_bpm(queue,params=None):
 		total_frames += read
 		if read < hop_s:
 			break
-	#temp = queue.get()
-	#total = int(temp)+len(beats)
-	print('beats stuff')
-	print(len(beats))
-	queue.put(len(beats))
+	queue.put(beats)
 	return(beats)
+
+def arduino_input(queue):
+
+	# for mac
+	cxn = Serial('/dev/tty.usbmodem1411', baudrate=9600)
+	start = time.time()
+	time_array = ['time']
+	previous_entry = ''
+	running = True
+	while running==True:
+		cxn.write([1])
+
+		result = str(cxn.readline())
+
+		if result[2:-5] == 'done':
+			running = False
+		elif result[2:-5] == 'turn':
+			end = time.time()
+			time_array.append(end-start)
+
+	queue.put(time_array)
+
+def dummy_input(queue):
+	# for mac
+	start = time.time()
+	time_array = ['time']
+	previous_entry = ''
+	running = True
+	while running==True:
+		char = getch()
+		if char == 'd':
+			running = False
+
+		elif char == 't':
+			end = time.time()
+			time_array.append(end-start)
+
+	queue.put(time_array)
+	calibrate(queue)
+
+
+def start_calibrate():
+	queuel = queue.Queue()
+	pool = ThreadPool(processes=2)
+	r = threading.Thread(target=record, args=(queuel,))
+	b = threading.Thread(target=dummy_input, args=(queuel,))
+	r.start()
+	b.start()
+
+def calibrate(queue):
+	first = queue.queue[0]
+	if first[0] == 'time':
+		time_array = first[1:]
+		beats = queue.queue[1]
+	else:
+		time_array = queue.queue[1][1:]
+		beats = first
+
+	calibrated = []
+	for turn in time_array:
+		print('interim beats')
+		print(beats)
+		for beat in range(len(beats)):
+			if beats[beat] > turn:
+				calibrated.append(len(beats[0:beat+1]))
+				beats = beats[beat+1:]
+				break
+	print('beats')
+	print(beats)
+	print('turing')
+	print(time_array)
+	print('calibrated')
+	print(calibrated)
 
 
 if __name__ == '__main__':
 
-	queue = queue.Queue()
-	record(queue, num=1)
-	print('done')
-	for i in range(queue.qsize()):
-		print(queue.queue[i])
-	
-	
-	
-
+	start_calibrate()
+		
 
 
