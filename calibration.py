@@ -129,14 +129,17 @@ def arduino_input(queue):
 		cxn.write([1])
 
 		result = str(cxn.readline())
-
+		print(result[2:])
 		if result[2:-5] == 'done':
 			running = False
 		elif result[2:-5] == 'turn':
 			end = time.time()
 			time_array.append(end-start)
+		elif result[2:-5] == 'stay':
+			queue.put('record')
 
 	queue.put(time_array)
+	calibrate(queue)
 
 def dummy_input(queue):
 	# for mac
@@ -160,10 +163,15 @@ def dummy_input(queue):
 def start_calibrate():
 	queuel = queue.Queue()
 	pool = ThreadPool(processes=2)
-	r = threading.Thread(target=record, args=(queuel,))
-	b = threading.Thread(target=dummy_input, args=(queuel,))
-	r.start()
+	b = threading.Thread(target=arduino_input, args=(queuel,))
+	
 	b.start()
+	waiting = True
+	while waiting == True:
+		if queuel.get() == 'record':
+			record(queuel)
+			waiting = False
+	
 
 def calibrate(queue):
 	first = queue.queue[0]
@@ -183,11 +191,12 @@ def calibrate(queue):
 				calibrated.append(len(beats[0:beat+1]))
 				beats = beats[beat+1:]
 				break
-	print('beats')
-	print(beats)
-	print('turing')
-	print(time_array)
-	print('calibrated')
+	filename = "list.txt"
+	file = open(filename, "w")
+	for i in calibrated:
+		writing = str(i)+'\n'
+		file.write(writing)
+	file.close()
 	print(calibrated)
 
 
