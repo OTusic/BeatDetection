@@ -8,16 +8,20 @@ import wave
 
 import threading
 
+from serial import Serial, SerialException
 from multiprocessing.pool import ThreadPool
+
+import sys, termios, tty, os, time
 
 def read_from_file():
 	with open("list.txt", "r") as ins:
 		array = []
 		for line in ins:
-			array.append(int(line.strip()))
+			array.append(float(line.strip()))
 	return(array)
 
 arr = list(reversed(read_from_file()))
+print(arr)
 
 def record(name='recording.wav'):
 	FORMAT = pyaudio.paInt16
@@ -61,7 +65,7 @@ def get_file_bpm(params=None):
         path: path to the file
         param: dictionary of parameters
     """
-    path = '/Users/emilylepert/Documents/Olin_2/First_Semester/PoE/Final_Project/BeatDetection/calibration.wav'
+    path = '/Users/emilylepert/Documents/Olin_2/First_Semester/PoE/Final_Project/BeatDetection/recording.wav'
     if params is None:
         params = {}
     # default:
@@ -119,14 +123,22 @@ def get_file_bpm(params=None):
     return beats_to_bpm(beats, path)
 
 def trigger_turn(start,turns):
-	
-	j = len(turns) 
-	while j>0:
+	print(turns)
+	j = len(turns) -1
+	# for mac
+	cxn = Serial('/dev/cu.usbmodem1421', baudrate=9600)
+	while j>=0:
 		next_turn = turns[j]
 		end = time.time()
-
+		'''
+		print('diff')
+		print(end-start)
+		print('next turn')
+		print(next_turn)
+		'''
 		if end-start >= next_turn:
-			print("Turn")
+			print('turn')
+			cxn.write([5])
 			j -= 1
 
 
@@ -136,9 +148,11 @@ if __name__ == '__main__':
 	bpm = record()
 	cur_bps = float(bpm)/60.0
 	cal_bps = arr.pop()
+	print(cur_bps)
+	print(cal_bps)
 	turn = []
-	for i in range(len(arr)-1):
-		turn.append(arr[i]*cur_bps)
+	for i in range(len(arr)):
+		turn.append(arr[i]/cur_bps)
 	trigger_turn(start,turn)
 	
 

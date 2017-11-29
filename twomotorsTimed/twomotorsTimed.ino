@@ -1,17 +1,22 @@
 #include <SoftwareSerial.h>
-#include <Stepper.h>
+#include <Servo.h>
 //the steps of a circle
-#define STEPS 100
+#define STEPS 768
 
                   /********** INITIALIZING VARIABLES FOR STEPPER MOTORS **********/
-//set steps and the connection with MCU
-Stepper stepperL(STEPS, 8, 9, 10, 11);
-Stepper stepperR(STEPS, 3, 4, 5, 6);
 
-// constants won't change. They're used here to set pin numbers:
-// variables will change:
-int steps = 0;
-int numpress = 0;
+Servo myservo;  // create servo object to control a servo
+// twelve servo objects can be created on most boards
+
+int pos = 0;    // variable to store the servo position
+
+long steps = 0;
+int Pin0 = 2;
+int Pin1 = 3;
+int Pin2 = 4;
+int Pin3 = 5;
+int _step = 0;
+boolean dir = true;// gre
 
 
                   /********** INITIALIZING VARIABLES FOR TIME MONITORING **********/
@@ -20,7 +25,7 @@ int switchMode = 12;
 int switchState = LOW;
 
 // variable for pin connected to the button
-int button = 7;
+int button = 12;
 int buttonState = LOW;  // Begins not being pressed
 
 // variables for LEDs
@@ -53,74 +58,135 @@ int timeStart = 0;
 int timeEnd = 0;
 int timeForCalibration = 0;
 // 1 is playing mode, 0 is calibration mode
-int mode = 0;
+int mode = 1;
 
 
 // Variouos Flags and Indicies
-int firstRunPlaying = 1;
+int firstRunPlaying = 0;
 int startMode = 0;
 
 bool pythonResponse = false;
 
                   /********** HELPER FUNCTIONS FOR STEPPER MOTORS **********/
-// Move the left motor 
-void lmotor()
-{
-  while (steps <= 200){
-  // speed of 225 per minute
-  stepperL.setSpeed(150);
-  stepperL.step(steps);
-  steps +=50;
+void flip(){
+  for (pos = 0; pos <= 180; pos += 5) { // goes from 0 degrees to 180 degrees
+    // in steps of 1 degree
+    myservo.write(pos);              // tell servo to go to position in variable 'pos'
+    delay(15);                       // waits 15ms for the servo to reach the position
+  }
+  for (pos = 180; pos >= 0; pos -= 60) { // goes from 180 degrees to 0 degrees
+    myservo.write(pos);              // tell servo to go to position in variable 'pos'
+    delay(15);                       // waits 15ms for the servo to reach the position
   }
 }
 
-// Move the right motor
-void rmotor ()
-{
-  while (steps <= 200){
-  // speed of 225 per minute
-  stepperR.setSpeed(150);
-  stepperR.step(steps);
-  steps +=50;
+void gomotor(){
+  steps = 0;
+  while(steps <= 100000L)
+  {
+    switch(_step)
+     {
+     case 0:
+     digitalWrite(Pin0, LOW);
+     digitalWrite(Pin1, LOW);
+     digitalWrite(Pin2, LOW);
+     digitalWrite(Pin3, HIGH);
+     break;
+     case 1:
+     digitalWrite(Pin0, LOW);
+     digitalWrite(Pin1, LOW);
+     digitalWrite(Pin2, HIGH);
+     digitalWrite(Pin3, HIGH);
+     break;
+     case 2:
+     digitalWrite(Pin0, LOW);
+     digitalWrite(Pin1, LOW);
+     digitalWrite(Pin2, HIGH);
+     digitalWrite(Pin3, LOW);
+     break;
+     case 3:
+     digitalWrite(Pin0, LOW);
+     digitalWrite(Pin1, HIGH);
+     digitalWrite(Pin2, HIGH);
+     digitalWrite(Pin3, LOW);
+     break;
+     case 4:
+     digitalWrite(Pin0, LOW);
+     digitalWrite(Pin1, HIGH);
+     digitalWrite(Pin2, LOW);
+     digitalWrite(Pin3, LOW);
+     break;
+     case 5:
+     digitalWrite(Pin0, HIGH);
+     digitalWrite(Pin1, HIGH);
+     digitalWrite(Pin2, LOW);
+     digitalWrite(Pin3, LOW);
+     break;
+     case 6:
+     digitalWrite(Pin0, HIGH);
+     digitalWrite(Pin1, LOW);
+     digitalWrite(Pin2, LOW);
+     digitalWrite(Pin3, LOW);
+     break;
+     case 7:
+     digitalWrite(Pin0, HIGH);
+     digitalWrite(Pin1, LOW);
+     digitalWrite(Pin2, LOW);
+     digitalWrite(Pin3, HIGH);
+     break;
+     default:
+     digitalWrite(Pin0, LOW);
+     digitalWrite(Pin1, LOW);
+     digitalWrite(Pin2, LOW);
+     digitalWrite(Pin3, LOW);
+     break;
+     }
+     if(dir){
+     _step++;
+     }else{
+     _step--;
+     }
+     if(_step>7){
+     _step=0;
+     }
+     if(_step<0){
+     _step=7;
+     }
+     delay(1);
+     steps +=64;
+     //Serial.println(steps);
   }
+  //flip(); 
 }
 
-// Stop both of the motors
-void off()
-{
-  // speed of zero
-  stepperL.setSpeed(0);
-  stepperL.step(0);
-  delay(2);
-  stepperR.setSpeed(0);
-  stepperR.step(0);
-  delay(2);
+void off(){
+ digitalWrite(Pin0, LOW);
+ digitalWrite(Pin1, LOW);
+ digitalWrite(Pin2, LOW);
+ digitalWrite(Pin3, LOW);
 }
 
-// Run motor based on value of numpress
-void runGivenMotor(int theNumpress){
-    steps = 0;
-    if (theNumpress == 1) {
-      lmotor();
-      numpress = 0;
-      delay(500);
-    }
-    else {
-      rmotor();
-      numpress = 1;
-      delay(500);
-    }  
-}
 
                               /********** SETUP **********/
 void setup()
 {
   /***** STEPPER SETUP ****/
-  //speed of 0
-  stepperL.setSpeed(0);
-  stepperL.step(0);
-  stepperR.setSpeed(0);
-  stepperR.step(0);
+  myservo.attach(2);
+  // initializes stepper pins as output
+  pinMode(Pin0, OUTPUT);
+  pinMode(Pin1, OUTPUT);
+  pinMode(Pin2, OUTPUT);
+  pinMode(Pin3, OUTPUT);
+  // sets stepper pins at low; OFF
+  digitalWrite(Pin0, LOW);
+  digitalWrite(Pin1, LOW);
+  digitalWrite(Pin2, LOW);
+  digitalWrite(Pin3, LOW);
+  // initialize the pushbutton pin as an input
+  pinMode(button, INPUT);
+  // initialize serial communications at 9600 bps
+  Serial.begin(9600);
+  steps = 0;
 
   /***** BUTTON/SWITCH SETUP ****/
   // initialize the pushbutton pin as an input
@@ -136,6 +202,8 @@ void setup()
 
                               /********** MAIN LOOP **********/
 void loop(){
+  gomotor();
+  /*
   int buttonState = digitalRead(button);
   // If this button changed states
   if(buttonState != prevButtonState){
@@ -159,7 +227,7 @@ void loop(){
             if((timeButtonReleased - timeButtonPushed) < 600){
               // **** SEND PYTHON BUTTON PRESSED **** 
               Serial.println("turn"); 
-              runGivenMotor(numpress);
+              gomotor();
               delay(400);
             }
             // Button is being held down
@@ -183,37 +251,18 @@ void loop(){
          timeButtonPushed = 0;
          timeButtonReleased = 0;
   }
-   /*
+   */
    // Playing mode (calibration is done)
-    if(mode){
-      // Approximate time when calibration ended
-      if (firstRunPlaying){
-        timeEnd = millis();
-
-        // Time it took for calibration to run
-        // i.e. expected time to be playing
-        timeForCalibration = timeEnd - timeStart;
-        firstRunPlaying = 0;
-      }
-
+    //if(mode){
       if (Serial.available()){
-        //pythonResponse = Serial.read();
-        runGivenMotor(numpress);
-        pythonResponse = false;
-      }
-
-      
-      int currentTime = millis();
-
-      // When still in expected time to listen (5% increased bound)
-      if((currentTime - timeEnd) <= (timeForCalibration)*1.05){
-        if(pythonResponse){
-          digitalWrite(redLED, HIGH);
-          delay(200);
+        pythonResponse = Serial.read();
+        Serial.println(pythonResponse);
+        if (pythonResponse){
+          Serial.println("in fi");
+          gomotor();
         }
       }
- 
-    } */
+   // } 
 
   
 }

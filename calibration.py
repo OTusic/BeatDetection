@@ -32,7 +32,7 @@ def record(queue,name='calibration.wav'):
 	CHANNELS = 2
 	RATE = 44100
 	CHUNK = 1024
-	RECORD_SECONDS = 20
+	RECORD_SECONDS = 30
 	WAVE_OUTPUT_FILENAME = name
 	 
 	audio = pyaudio.PyAudio()
@@ -136,6 +136,7 @@ def arduino_input(queue):
 			end = time.time()
 			time_array.append(end-start)
 		elif result[2:-5] == 'stay':
+			print('start')
 			queue.put('record')
 
 	queue.put(time_array)
@@ -155,6 +156,8 @@ def dummy_input(queue):
 		elif char == 't':
 			end = time.time()
 			time_array.append(end-start)
+		elif char == 's':
+			queue.put('record')
 
 	queue.put(time_array)
 	calibrate(queue)
@@ -189,7 +192,6 @@ def calibrate(queue):
 		for beat in range(len(beats)):
 			if beats[beat] > turn:
 				calibrated.append(len(beats[0:beat+1]))
-				beats = beats[beat+1:]
 				break
 	filename = "list.txt"
 	file = open(filename, "w")

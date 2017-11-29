@@ -119,7 +119,7 @@ def get_file_bpm(queue,params=None):
             if len(beats) < 4:
                 print("few beats found in {:s}".format(path))
             bpms = 60./diff(beats)
-            queue.put(median(bpms))
+            queue.put(['bpm', median(bpms)])
             return median(bpms)
         else:
             print("not enough beats found in {:s}".format(path))
@@ -136,7 +136,7 @@ def arduino_input(queue):
 	previous_entry = ''
 	running = True
 	while running==True:
-		cxn.write([1])
+		#cxn.write([1])
 
 		result = str(cxn.readline())
 		print(result[2:])
@@ -154,6 +154,7 @@ def arduino_input(queue):
 
 def dummy_input(queue):
 	# for mac
+	cxn = Serial('/dev/cu.usbmodem1421', baudrate=9600)
 	start = time.time()
 	time_array = ['time']
 	previous_entry = ''
@@ -164,10 +165,12 @@ def dummy_input(queue):
 			running = False
 
 		elif char == 't':
+			cxn.write([5])
 			end = time.time()
 			time_array.append(end-start)
 		elif char == 's':
-			queue.put('record')
+			start = time.time()
+			queue.put(['record'])
 
 	queue.put(time_array)
 	calibrate(queue)
@@ -176,24 +179,22 @@ def dummy_input(queue):
 def start_calibrate():
 	queuel = queue.Queue()
 	pool = ThreadPool(processes=2)
-	b = threading.Thread(target=arduino_input, args=(queuel,))
+	b = threading.Thread(target=dummy_input, args=(queuel,))
 	
 	b.start()
 	waiting = True
 	while waiting == True:
-		if queuel.get() == 'record':
+		if queuel.get()[0] == 'record':
 			record(queuel)
 			waiting = False
 	
 
 def calibrate(queue):
-	first = queue.queue[0]
-	if first[0] == 'time':
-		time_array = first[1:]
-		bpm = queue.queue[1][0]
-	else:
-		time_array = queue.queue[1][1:]
-		bpm = first[0]
+	for i in range(queue.qsize()):
+		if queue.queue[i][0] == 'time':
+			time_array = queue.queue[i][1:]
+		elif queue.queue[i][0] == 'bpm':
+			bpm = queue.queue[i][1]
 
 	bps = float(bpm)/60.0
 	calibrated = []
