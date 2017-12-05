@@ -8,13 +8,13 @@
 Servo myservo;  // create servo object to control a servo
 // twelve servo objects can be created on most boards
 
-int pos = 0;    // variable to store the servo position
+int pos = 180;    // variable to store the servo position
 
 long steps = 0;
-int Pin0 = 2;
-int Pin1 = 3;
-int Pin2 = 4;
-int Pin3 = 5;
+int Pin0 = 8;
+int Pin1 = 9;
+int Pin2 = 10;
+int Pin3 = 11;
 int _step = 0;
 boolean dir = true;// gre
 
@@ -25,7 +25,7 @@ int switchMode = 12;
 int switchState = LOW;
 
 // variable for pin connected to the button
-int button = 12;
+int button = 7;
 int buttonState = LOW;  // Begins not being pressed
 
 // variables for LEDs
@@ -58,7 +58,7 @@ int timeStart = 0;
 int timeEnd = 0;
 int timeForCalibration = 0;
 // 1 is playing mode, 0 is calibration mode
-int mode = 1;
+int mode = 0;
 
 
 // Variouos Flags and Indicies
@@ -69,20 +69,107 @@ bool pythonResponse = false;
 
                   /********** HELPER FUNCTIONS FOR STEPPER MOTORS **********/
 void flip(){
-  for (pos = 0; pos <= 180; pos += 5) { // goes from 0 degrees to 180 degrees
+  for (pos = 180; pos >= 140; pos -= 1) { // goes from 180 degrees to 0 degrees
+    myservo.write(pos);              // tell servo to go to position in variable 'pos'
+    delay(15);                       // waits 15ms for the servo to reach the position
+  }
+  for (pos = 140 ; pos >= 20; pos -= 1) { // goes from 180 degrees to 0 degrees
+    myservo.write(pos);              // tell servo to go to position in variable 'pos'
+    delay(15);                       // waits 15ms for the servo to reach the position
+  }
+  delay(4000);
+  for (pos = 20; pos <= 180; pos += 1) { // goes from 0 degrees to 180 degrees
     // in steps of 1 degree
     myservo.write(pos);              // tell servo to go to position in variable 'pos'
     delay(15);                       // waits 15ms for the servo to reach the position
   }
-  for (pos = 180; pos >= 0; pos -= 60) { // goes from 180 degrees to 0 degrees
-    myservo.write(pos);              // tell servo to go to position in variable 'pos'
-    delay(15);                       // waits 15ms for the servo to reach the position
-  }
+  
 }
 
-void gomotor(){
+void gomotor_forward(){
+  dir = true;
   steps = 0;
-  while(steps <= 100000L)
+  while(steps <= 150000L)
+  {
+    switch(_step)
+     {
+     case 0:
+     digitalWrite(Pin0, LOW);
+     digitalWrite(Pin1, LOW);
+     digitalWrite(Pin2, LOW);
+     digitalWrite(Pin3, HIGH);
+     break;
+     case 1:
+     digitalWrite(Pin0, LOW);
+     digitalWrite(Pin1, LOW);
+     digitalWrite(Pin2, HIGH);
+     digitalWrite(Pin3, HIGH);
+     break;
+     case 2:
+     digitalWrite(Pin0, LOW);
+     digitalWrite(Pin1, LOW);
+     digitalWrite(Pin2, HIGH);
+     digitalWrite(Pin3, LOW);
+     break;
+     case 3:
+     digitalWrite(Pin0, LOW);
+     digitalWrite(Pin1, HIGH);
+     digitalWrite(Pin2, HIGH);
+     digitalWrite(Pin3, LOW);
+     break;
+     case 4:
+     digitalWrite(Pin0, LOW);
+     digitalWrite(Pin1, HIGH);
+     digitalWrite(Pin2, LOW);
+     digitalWrite(Pin3, LOW);
+     break;
+     case 5:
+     digitalWrite(Pin0, HIGH);
+     digitalWrite(Pin1, HIGH);
+     digitalWrite(Pin2, LOW);
+     digitalWrite(Pin3, LOW);
+     break;
+     case 6:
+     digitalWrite(Pin0, HIGH);
+     digitalWrite(Pin1, LOW);
+     digitalWrite(Pin2, LOW);
+     digitalWrite(Pin3, LOW);
+     break;
+     case 7:
+     digitalWrite(Pin0, HIGH);
+     digitalWrite(Pin1, LOW);
+     digitalWrite(Pin2, LOW);
+     digitalWrite(Pin3, HIGH);
+     break;
+     default:
+     digitalWrite(Pin0, LOW);
+     digitalWrite(Pin1, LOW);
+     digitalWrite(Pin2, LOW);
+     digitalWrite(Pin3, LOW);
+     break;
+     }
+     if(dir){
+     _step++;
+     }else{
+     _step--;
+     }
+     if(_step>7){
+     _step=0;
+     }
+     if(_step<0){
+     _step=7;
+     }
+     delay(1);
+     steps +=64;
+     //Serial.println(steps);
+  }
+  //flip(); 
+}
+
+void gomotor_backward(){
+  dir = false;
+  steps = 0;
+  while(steps <= 50000L)
   {
     switch(_step)
      {
@@ -194,6 +281,8 @@ void setup()
   pinMode(switchMode, INPUT);
 
   pinMode(redLED, OUTPUT);
+
+  myservo.write(pos); 
   
   // initialize serial communications at 9600 bps
   Serial.begin(9600);
@@ -202,8 +291,6 @@ void setup()
 
                               /********** MAIN LOOP **********/
 void loop(){
-  gomotor();
-  /*
   int buttonState = digitalRead(button);
   // If this button changed states
   if(buttonState != prevButtonState){
@@ -224,10 +311,13 @@ void loop(){
         // If we're in calibration mode
         if(!mode){
             // If button was NOT held
-            if((timeButtonReleased - timeButtonPushed) < 600){
+            if((timeButtonReleased - timeButtonPushed) < 900){
               // **** SEND PYTHON BUTTON PRESSED **** 
               Serial.println("turn"); 
-              gomotor();
+              gomotor_forward();
+              flip();
+              gomotor_backward();
+              
               delay(400);
             }
             // Button is being held down
@@ -251,18 +341,18 @@ void loop(){
          timeButtonPushed = 0;
          timeButtonReleased = 0;
   }
-   */
    // Playing mode (calibration is done)
-    //if(mode){
+   if(mode){
       if (Serial.available()){
         pythonResponse = Serial.read();
-        Serial.println(pythonResponse);
         if (pythonResponse){
-          Serial.println("in fi");
-          gomotor();
+          gomotor_forward();
+          flip();
+          gomotor_backward();
+          delay(10000);
         }
       }
-   // } 
+   } 
 
   
 }

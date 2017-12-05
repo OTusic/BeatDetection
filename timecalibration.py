@@ -32,7 +32,7 @@ def record(queue,name='calibration.wav'):
 	CHANNELS = 2
 	RATE = 44100
 	CHUNK = 1024
-	RECORD_SECONDS = 30
+	RECORD_SECONDS = 10
 	WAVE_OUTPUT_FILENAME = name
 	 
 	audio = pyaudio.PyAudio()
@@ -147,7 +147,7 @@ def arduino_input(queue):
 			time_array.append(end-start)
 		elif result[2:-5] == 'stay':
 			print('start')
-			queue.put('record')
+			queue.put(['record'])
 
 	queue.put(time_array)
 	calibrate(queue)
@@ -179,7 +179,7 @@ def dummy_input(queue):
 def start_calibrate():
 	queuel = queue.Queue()
 	pool = ThreadPool(processes=2)
-	b = threading.Thread(target=dummy_input, args=(queuel,))
+	b = threading.Thread(target=arduino_input, args=(queuel,))
 	
 	b.start()
 	waiting = True
@@ -190,7 +190,9 @@ def start_calibrate():
 	
 
 def calibrate(queue):
+	print(queue.qsize())
 	for i in range(queue.qsize()):
+		print(queue.queue[i][0])
 		if queue.queue[i][0] == 'time':
 			time_array = queue.queue[i][1:]
 		elif queue.queue[i][0] == 'bpm':

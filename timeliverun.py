@@ -122,13 +122,14 @@ def get_file_bpm(params=None):
 
     return beats_to_bpm(beats, path)
 
-def trigger_turn(start,turns):
+def trigger_turn(start,turns,cur_bps):
 	print(turns)
 	j = len(turns) -1
 	# for mac
-	cxn = Serial('/dev/cu.usbmodem1421', baudrate=9600)
+	cxn = Serial('/dev/cu.usbmodem147', baudrate=9600)
 	while j>=0:
 		next_turn = turns[j]
+		#print(next_turn*cur_bps)
 		end = time.time()
 		'''
 		print('diff')
@@ -144,6 +145,7 @@ def trigger_turn(start,turns):
 
 
 if __name__ == '__main__':
+	print('recording')
 	start = time.time()
 	bpm = record()
 	cur_bps = float(bpm)/60.0
@@ -152,7 +154,7 @@ if __name__ == '__main__':
 	print(cal_bps)
 	turn = []
 	for i in range(len(arr)):
-		turn.append(arr[i]/cur_bps)
-	trigger_turn(start,turn)
+		turn.append(arr[i]/cal_bps-2)
+	trigger_turn(start,turn,cal_bps)
 	
 
