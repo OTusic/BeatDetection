@@ -8,7 +8,7 @@
 Servo myservo;  // create servo object to control a servo
 // twelve servo objects can be created on most boards
 
-int pos = 180;    // variable to store the servo position
+int pos = 170;    // variable to store the servo position
 
 long steps = 0;
 int Pin0 = 8;
@@ -52,13 +52,13 @@ int numPages = 5;
 int flipTimes[4];
 
 // Time when button was pressed (looking to see if held down)
-int timeButtonPushed = 0;
-int timeButtonReleased = 0;
+unsigned long timeButtonPushed = 0;
+unsigned long timeButtonReleased = 0;
 int timeStart = 0;
 int timeEnd = 0;
 int timeForCalibration = 0;
 // 1 is playing mode, 0 is calibration mode
-int mode = 0;
+int mode = 1;
 
 
 // Variouos Flags and Indicies
@@ -69,7 +69,7 @@ bool pythonResponse = false;
 
                   /********** HELPER FUNCTIONS FOR STEPPER MOTORS **********/
 void flip(){
-  for (pos = 180; pos >= 140; pos -= 1) { // goes from 180 degrees to 0 degrees
+  for (pos = 170; pos >= 140; pos -= 1) { // goes from 180 degrees to 0 degrees
     myservo.write(pos);              // tell servo to go to position in variable 'pos'
     delay(15);                       // waits 15ms for the servo to reach the position
   }
@@ -78,7 +78,7 @@ void flip(){
     delay(15);                       // waits 15ms for the servo to reach the position
   }
   delay(4000);
-  for (pos = 20; pos <= 180; pos += 1) { // goes from 0 degrees to 180 degrees
+  for (pos = 20; pos <= 170; pos += 1) { // goes from 0 degrees to 180 degrees
     // in steps of 1 degree
     myservo.write(pos);              // tell servo to go to position in variable 'pos'
     delay(15);                       // waits 15ms for the servo to reach the position
@@ -89,7 +89,7 @@ void flip(){
 void gomotor_forward(){
   dir = true;
   steps = 0;
-  while(steps <= 150000L)
+  while(steps <= 170000L)
   {
     switch(_step)
      {
@@ -169,7 +169,7 @@ void gomotor_forward(){
 void gomotor_backward(){
   dir = false;
   steps = 0;
-  while(steps <= 50000L)
+  while(steps <= 150000L)
   {
     switch(_step)
      {
@@ -311,17 +311,20 @@ void loop(){
         // If we're in calibration mode
         if(!mode){
             // If button was NOT held
-            if((timeButtonReleased - timeButtonPushed) < 900){
+            if((timeButtonReleased - timeButtonPushed) < 1500){
               // **** SEND PYTHON BUTTON PRESSED **** 
               Serial.println("turn"); 
+              delay(100);
               gomotor_forward();
               flip();
               gomotor_backward();
+              timeButtonPushed = 0;
+              timeButtonReleased = 0;
               
-              delay(400);
             }
             // Button is being held down
-            else{
+            else if((timeButtonReleased - timeButtonPushed) > 2000){
+           
                // **** SEND PYTHON BUTTON HELD **** 
                
     
@@ -330,26 +333,35 @@ void loop(){
                 firstRun = 0;
                 timeStart = millis();
                 Serial.println("stay");
+                timeButtonPushed = 0;
+                timeButtonReleased = 0;
                }
                else{
                 // Switch modes
-                 mode = 1; 
+                 //mode = 1; 
                  Serial.println("done");
+                 timeButtonPushed = 0;
+                  timeButtonReleased = 0;
                }
             }
          }
-         timeButtonPushed = 0;
-         timeButtonReleased = 0;
+         else if((timeButtonReleased - timeButtonPushed) > 900){
+            Serial.println("start");
+            timeButtonPushed = 0;
+            timeButtonReleased = 0;
+         }
+         
   }
    // Playing mode (calibration is done)
    if(mode){
       if (Serial.available()){
         pythonResponse = Serial.read();
-        if (pythonResponse){
+
+        if (pythonResponse==1){
           gomotor_forward();
           flip();
           gomotor_backward();
-          delay(10000);
+          delay(100);
         }
       }
    } 
