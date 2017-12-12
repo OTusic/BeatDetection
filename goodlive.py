@@ -1,25 +1,25 @@
-#from aubio import source, tempo
-from numpy import median, diff
+'''
+Code for live music playing
+
+Authors: Tusic
+'''
+
 import queue
 import pyaudio
 import wave
-import time
 import threading
-
-from pynput import keyboard
-
-from multiprocessing.pool import ThreadPool
-
-from serial import Serial, SerialException
-
 import sys, termios, tty, os, time
-
 import struct
 import math
 
-#cxn = Serial('/dev/tty.usbmodem1411', baudrate=9600)
+from serial import Serial, SerialException
+
+cxn = Serial('/dev/tty.usbmodem1421', baudrate=9600)
 
 def read_from_file():
+	'''
+	reads from the file with the calibration data
+	'''
 	with open("list.txt", "r") as ins:
 		array = []
 		for line in ins:
@@ -27,15 +27,17 @@ def read_from_file():
 	return(array)
 
 arr = list(read_from_file())
-print(arr)
 
 def record(queue, amp_threshold=0.4):
-	#serr=serial.Serial('/dev/cu.usbmodem1411', baudrate=9600)
+	'''
+	Records 60 seconds of music and detects when a beat is played
+	Adapted and inspired from https://github.com/shunfu/python-beat-detector
+	'''
 	chunk = 1024
 	FORMAT = pyaudio.paInt16
 	CHANNELS = 1
 	RATE = 44100
-	RECORD_SECONDS = 30
+	RECORD_SECONDS = 60
 	WAVE_OUTPUT_FILENAME = "output.wav"
 
 	p = pyaudio.PyAudio()
@@ -94,60 +96,60 @@ def record(queue, amp_threshold=0.4):
 
 	stream.close()
 	p.terminate()
-
-	# write data to WAVE file
-	#data = ''.join(all_1)
-	wf = wave.open(WAVE_OUTPUT_FILENAME, 'wb')
-	wf.setnchannels(CHANNELS)
-	wf.setsampwidth(p.get_sample_size(FORMAT))
-	wf.setframerate(RATE)
-	wf.writeframes(data)
-	wf.close()
 	serr.close()
 
 
 def beat_array_tracker(queue):
-	print(queue.qsize())
+
 	for i in range(queue.qsize()):
-		print(queue.queue[i])
+
+		# checks if the current beat number is equal to
+		# the one in the file
 		if queue.queue[i][0] == 'nbr_beats':
 			beat_nbr = queue.queue[i][1:][0]
 			if arr:
-				
+				# if so turn the page and remove element from
+				# calibration list
 				if beat_nbr >= arr[0]:
-					print('TUUUUUUUUUUUUUUUUUUUUUUUUUU')
 					turn_page()
 					beat_nbr = 0
 					arr.pop(0)
+				# if not, increment by one
 				else:
 					beat_nbr += 1
 			else:
 				beat_nbr += 1
-			print('beat_nbr')
-			print(beat_nbr)	
+
 			queue.queue.clear()
 			queue.put(['nbr_beats', beat_nbr])
 			break
 
 def turn_page():
-	# for mac
-	
+	'''
+	sends signal to Arduino to turn page
+	'''
 	cxn.write([1])
 
 def arduino_start(queue):
-	# for mac
+	'''
+	Gets input from the Arduino via serial connection
+	'''
+
 	running = True
 	while running==True:
-		#cxn.write([1])
 
 		result = str(cxn.readline())
 		print(result[2:])
+		# checks to see that player wants to start playing
 		if result[2:7] == 'start':
 			print('start')
 			queue.put(['record'])
 			running = False
 
 def start_live_run():
+	'''
+	starts process for live playing
+	'''
 	queuel = queue.Queue()
 	queuel.put(['nbr_beats',0])
 	print(queuel.qsize()) 
